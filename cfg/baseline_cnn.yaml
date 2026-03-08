@@ -1,0 +1,22 @@
+# Baseline CNN — trains from scratch, no foundation model.
+model:
+  name: baseline_cnn
+  dropout: 0.1
+  baseline_width: 128
+
+loss:
+  name: weighted_ce
+
+stage1:
+  epochs: 25
+  lr: 1.0e-3
+  weight_decay: 1.0e-4
+
+stage2:
+  epochs: 0
+  lr: 1.0e-4
+  weight_decay: 1.0e-4
+  head_lr_scale: 1.0
+
+wandb:
+  run_name: baseline_cnn

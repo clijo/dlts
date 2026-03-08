@@ -1,0 +1,25 @@
+# Chronos-2 foundation model adaptation.
+model:
+  name: chronos_tsfm
+  chronos_model_id: amazon/chronos-2
+  device_map: cpu
+  dropout: 0.1
+  unfreeze_last_n: 3
+
+loss:
+  name: focal
+  focal_gamma: 2.0
+
+stage1:
+  epochs: 15
+  lr: 1.0e-3
+  weight_decay: 1.0e-4
+
+stage2:
+  epochs: 30
+  lr: 1.0e-5
+  weight_decay: 1.0e-4
+  head_lr_scale: 8.0
+
+wandb:
+  run_name: chronos2_adaptation
