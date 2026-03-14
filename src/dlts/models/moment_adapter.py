@@ -50,6 +50,10 @@ class MomentAdapterClassifier(nn.Module):
         # MOMENT expects: (batch_size, channels, sequence_length)
         x_moment = rearrange(x, 'b s c -> b c s').float()
 
+        # Hack to silence PyTorch gradient checkpointing warning during Stage 1 (frozen backbone)
+        if self.training and self.moment_model.is_gradient_checkpointing:
+            x_moment.requires_grad_(True)
+
         # The model directly returns an embedding of shape (batch_size, 1024)
         outputs = self.moment_model(x_moment)
         z = outputs.embeddings

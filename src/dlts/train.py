@@ -161,7 +161,7 @@ def evaluate(
     model.eval()
     all_probs = []
     all_targets = []
-    with torch.no_grad():
+    with torch.no_grad(), torch.autocast(device_type=device.type, enabled=device.type in ["cuda", "mps"]):
         for x, y in loader:
             x = x.to(device)
             logits = model(x)
@@ -194,6 +194,7 @@ def run_stage(
         steps_per_epoch=len(train_loader),
         warmup_epochs=1,
     )
+    scaler = torch.amp.GradScaler(device.type, enabled=device.type in ["cuda", "mps"])
     best_f1 = 0.0
     model.train()
     for epoch in range(stage_cfg.epochs):
@@ -202,12 +203,19 @@ def run_stage(
             x = x.to(device)
             y = y.to(device)
             optimizer.zero_grad(set_to_none=True)
-            logits = model(x)
-            loss = criterion(logits, y)
-            loss.backward()
+            
+            with torch.autocast(device_type=device.type, enabled=device.type in ["cuda", "mps"]):
+                logits = model(x)
+                loss = criterion(logits, y)
+                
+            scaler.scale(loss).backward()
+            
             if grad_clip > 0:
+                scaler.unscale_(optimizer)
                 nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
-            optimizer.step()
+                
+            scaler.step(optimizer)
+            scaler.update()
             scheduler.step()
             losses.append(float(loss.detach().cpu()))
 

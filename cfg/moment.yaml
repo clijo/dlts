@@ -1,4 +1,6 @@
 # MOMENT foundation model adaptation.
+batch_size: 32
+
 model:
   name: moment_tsfm
   dropout: 0.1

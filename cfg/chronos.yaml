@@ -1,4 +1,6 @@
 # Chronos-2 foundation model adaptation.
+batch_size: 64
+
 model:
   name: chronos_tsfm
   chronos_model_id: amazon/chronos-2
