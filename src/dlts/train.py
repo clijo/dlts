@@ -14,7 +14,7 @@ from torch import nn
 from torch.utils.data import DataLoader
 
 from dlts.data.lsst_ts import LSSTDataset, load_lsst
-from dlts.losses import FocalLoss, inverse_frequency_class_weights
+from dlts.losses import inverse_frequency_class_weights
 from dlts.metrics import classification_metrics
 from dlts.models.factory import build_model
 
@@ -54,11 +54,7 @@ def build_parser() -> ArgumentParser:
     )
     parser.add_argument("--model.device_map", type=str, default=None)
 
-    parser.add_argument(
-        "--loss.name", type=str, default="weighted_ce", choices=["weighted_ce", "focal"]
-    )
     parser.add_argument("--loss.label_smoothing", type=float, default=0.1)
-    parser.add_argument("--loss.focal_gamma", type=float, default=2.0)
 
     # Stage 1: head only (frozen backbone)
     parser.add_argument("--stage1.epochs", type=int, default=10)
@@ -273,9 +269,9 @@ def run_stage(
         print(
             f"[{stage_name}] epoch={epoch + 1}/{stage_cfg.epochs} "
             f"loss={log_dict[f'{stage_name}/train_loss']:.4f} "
+            f"val_acc={val_metrics['accuracy']:.4f} "
             f"val_f1={macro_f1:.4f} "
             f"val_bal_acc={val_metrics['balanced_accuracy']:.4f} "
-            f"val_pr_auc={val_metrics['macro_pr_auc']:.4f} "
             f"val_logloss={val_metrics['log_loss']:.4f} "
             f"best_val_f1={best_f1:.4f}"
         )
@@ -356,12 +352,9 @@ def main() -> None:
     ).to(device)
     class_weights_np = class_weights.cpu().numpy()
 
-    if cfg.loss.name == "weighted_ce":
-        criterion: nn.Module = nn.CrossEntropyLoss(
-            weight=class_weights, label_smoothing=cfg.loss.label_smoothing
-        )
-    else:
-        criterion = FocalLoss(alpha=class_weights, gamma=cfg.loss.focal_gamma)
+    criterion: nn.Module = nn.CrossEntropyLoss(
+        weight=class_weights, label_smoothing=cfg.loss.label_smoothing
+    )
 
     # ── W&B ───────────────────────────────────────────────────────────
     wandb.init(
@@ -455,11 +448,10 @@ def main() -> None:
     test_metrics = evaluate(model, test_loader, device, class_weights=class_weights_np)
     wandb.log({f"test/{k}": v for k, v in test_metrics.items()})
     print(
-        f"Test  | f1={test_metrics['macro_f1']:.4f} "
+        f"Test  | acc={test_metrics['accuracy']:.4f} "
+        f"f1={test_metrics['macro_f1']:.4f} "
         f"bal_acc={test_metrics['balanced_accuracy']:.4f} "
-        f"pr_auc={test_metrics['macro_pr_auc']:.4f} "
-        f"logloss={test_metrics['log_loss']:.4f} "
-        f"brier={test_metrics['brier_score']:.4f}"
+        f"logloss={test_metrics['log_loss']:.4f}"
     )
     wandb.finish()
 
