@@ -1,27 +1,44 @@
-# Chronos-2 foundation model adaptation.
-device: cuda
+seed: 42
+device: auto
+num_workers: 2
 batch_size: 96
+grad_clip: 1.0
+early_stopping_patience: 15
+checkpoint_dir: checkpoints
+
+data:
+  normalize: true
+  val_fraction: 0.2
+  augment: true
 
 model:
   name: chronos
-  chronos_model_id: amazon/chronos-2
-  device_map: cuda
   dropout: 0.2
   unfreeze_last_n: 3
+  chronos_model_id: amazon/chronos-2
+  device_map: null
 
 loss:
   label_smoothing: 0.1
 
+# Stage 1 — linear probing (backbone frozen, head only).
+# 100 epochs, patience=15 (15% of budget).
 stage1:
-  epochs: 15
+  epochs: 100
   lr: 1.0e-3
   weight_decay: 1.0e-4
 
+# Stage 2 — partial fine-tune (last 3 encoder blocks + head).
+# 50 epochs, patience=15 (30% of budget) — generous to allow the encoder
+# to recover from the initial disruption of unfreezing.
 stage2:
-  epochs: 30
+  epochs: 50
   lr: 1.0e-5
   weight_decay: 1.0e-4
   head_lr_scale: 8.0
 
 wandb:
+  project: lsst-tsfm
+  entity: null
   run_name: chronos2_adaptation
+  mode: offline

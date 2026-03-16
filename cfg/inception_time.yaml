@@ -1,0 +1,40 @@
+seed: 42
+device: auto
+num_workers: 2
+batch_size: 128
+grad_clip: 1.0
+early_stopping_patience: 25
+checkpoint_dir: checkpoints
+
+data:
+  normalize: true
+  val_fraction: 0.2
+  augment: true
+
+model:
+  name: inception_time
+  dropout: 0.2
+  unfreeze_last_n: 0
+  inception_nb_filters: 32
+
+loss:
+  label_smoothing: 0.1
+
+# From-scratch: 200 epochs, patience=25 (12.5% of budget).
+# Matches the zie/ experiments on the same LSST split.
+stage1:
+  epochs: 200
+  lr: 1.0e-3
+  weight_decay: 1.0e-4
+
+stage2:
+  epochs: 0
+  lr: 0.0
+  weight_decay: 0.0
+  head_lr_scale: 1.0
+
+wandb:
+  project: lsst-tsfm
+  entity: null
+  run_name: inception_time
+  mode: offline
