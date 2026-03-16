@@ -12,17 +12,13 @@ from sklearn.metrics import (
 def classification_metrics(
     y_true: np.ndarray, probs: np.ndarray, class_weights: np.ndarray | None = None
 ) -> dict[str, float]:
-    """
-    Computes robust metrics for imbalanced transient classification (e.g., LSST).
-    """
+    """Compute classification metrics for LSST-style imbalanced data."""
     pred = probs.argmax(axis=1)
 
     sample_weight = None
     if class_weights is not None:
         sample_weight = class_weights[y_true]
 
-    # 1. Brier Score (Multi-class Mean Squared Error of Probabilities)
-    # Excellent for evaluating probability calibration
     y_true_one_hot = np.zeros_like(probs)
     y_true_one_hot[np.arange(y_true.size), y_true] = 1
 
@@ -33,12 +29,8 @@ def classification_metrics(
     else:
         brier_score = np.mean(np.sum((probs - y_true_one_hot) ** 2, axis=1))
 
-    # 2. Log-Loss (Cross-Entropy) - PLAsTiCC challenge standard
-    # Heavily penalizes confident incorrect predictions (eps prevents log(0))
     logloss = float(log_loss(y_true, probs, sample_weight=sample_weight))
 
-    # 3. Macro PR-AUC (Average Precision)
-    # Better than AUROC for highly imbalanced data as it focuses on minority class P/R
     pr_auc = float(average_precision_score(y_true_one_hot, probs, average="macro"))
 
     return {

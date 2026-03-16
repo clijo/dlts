@@ -26,7 +26,6 @@ class ResidualBlock1D(nn.Module):
         )
         self.bn2 = nn.BatchNorm1d(out_channels)
 
-        # Skip connection - match dimensions if needed
         if in_channels != out_channels:
             self.shortcut = nn.Sequential(
                 nn.Conv1d(in_channels, out_channels, kernel_size=1, bias=False),
@@ -61,15 +60,12 @@ class BaselineCNNClassifier(nn.Module):
     ) -> None:
         super().__init__()
 
-        # A standard ResNet-1D architecture for time series usually has 3 blocks
-        # We start by expanding the input to our base width
         self.stem = nn.Sequential(
             nn.Conv1d(input_dim, width, kernel_size=7, padding=3),
             nn.BatchNorm1d(width),
             nn.GELU(),
         )
 
-        # Three residual blocks. We can use dilations to increase receptive field cheaply
         self.res_blocks = nn.Sequential(
             ResidualBlock1D(width, width, kernel_size=5, dilation=1),
             ResidualBlock1D(width, width, kernel_size=5, dilation=2),
@@ -84,8 +80,6 @@ class BaselineCNNClassifier(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # Expected input shape: (batch_size, sequence_length, channels)
-        # PyTorch Conv1d expects: (batch_size, channels, sequence_length)
         x = rearrange(x, "b s c -> b c s")
 
         x = self.stem(x)

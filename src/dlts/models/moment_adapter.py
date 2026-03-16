@@ -19,12 +19,10 @@ class MomentAdapterClassifier(nn.Module):
     ) -> None:
         super().__init__()
 
-        # Load the community-supported transformers-compatible MOMENT model
         self.moment_model = AutoModel.from_pretrained(
             moment_model_id, trust_remote_code=True
         )
 
-        # MOMENT-large provides a 1024-dimensional embedding
         hidden_size = 1024
 
         self.classifier = nn.Sequential(
@@ -42,21 +40,17 @@ class MomentAdapterClassifier(nn.Module):
     def unfreeze_last_n_encoder_layers(self, n_layers: int) -> None:
         if n_layers <= 0:
             return
-        # MOMENT's backbone is a T5Stack accessed via self.moment_model.encoder
         for block in self.moment_model.encoder.block[-n_layers:]:
             for p in block.parameters():
                 p.requires_grad = True
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # Expected input shape: (batch_size, sequence_length, channels)
-        # MOMENT expects: (batch_size, channels, sequence_length)
         x_moment = rearrange(x, "b s c -> b c s").float()
 
-        # Hack to silence PyTorch gradient checkpointing warning during Stage 1 (frozen backbone)
+        # Keep autograd graph alive when gradient checkpointing is enabled.
         if self.training and self.moment_model.is_gradient_checkpointing:
             x_moment.requires_grad_(True)
 
-        # The model directly returns an embedding of shape (batch_size, 1024)
         outputs = self.moment_model(x_moment)
         z = outputs.embeddings
 
