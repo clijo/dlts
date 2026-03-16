@@ -157,22 +157,38 @@ def _save_plots(
     # 1. Per-model F1 comparison ──────────────────────────────────────────────
     fig, ax = plt.subplots(figsize=(max(6, len(eligible) * 1.4), 5))
     model_names = [r["model_name"] for r in eligible]
-    val_f1s  = [r["val_macro_f1"] for r in eligible]
+    val_f1s = [r["val_macro_f1"] for r in eligible]
     test_f1s = [m["macro_f1"] for m in per_model_metrics]
 
     x = np.arange(len(eligible))
     w = 0.35
-    bars_val  = ax.bar(x - w/2, val_f1s,  w, label="Val macro-F1",  color="steelblue",  alpha=0.85)
-    bars_test = ax.bar(x + w/2, test_f1s, w, label="Test macro-F1", color="coral",      alpha=0.85)
+    bars_val = ax.bar(
+        x - w / 2, val_f1s, w, label="Val macro-F1", color="steelblue", alpha=0.85
+    )
+    bars_test = ax.bar(
+        x + w / 2, test_f1s, w, label="Test macro-F1", color="coral", alpha=0.85
+    )
 
     for bar in (*bars_val, *bars_test):
-        ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.005,
-                f"{bar.get_height():.3f}", ha="center", va="bottom", fontsize=8)
+        ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_height() + 0.005,
+            f"{bar.get_height():.3f}",
+            ha="center",
+            va="bottom",
+            fontsize=8,
+        )
 
     # Annotate ensemble weight above each model pair
     for i, wt in enumerate(weights):
-        ax.text(x[i], max(val_f1s[i], test_f1s[i]) + 0.02,
-                f"w={wt:.3f}", ha="center", fontsize=8, color="dimgray")
+        ax.text(
+            x[i],
+            max(val_f1s[i], test_f1s[i]) + 0.02,
+            f"w={wt:.3f}",
+            ha="center",
+            fontsize=8,
+            color="dimgray",
+        )
 
     ax.set_xticks(x)
     ax.set_xticklabels(model_names, rotation=20, ha="right")
@@ -353,12 +369,12 @@ def main() -> None:
 
     print("\n── Per-class F1 (test) ──────────────────────────────────")
     print(f"  {'Class':>8}  {'F1':>6}  {'Support':>8}")
-    print(f"  {'-'*8}  {'-'*6}  {'-'*8}")
+    print(f"  {'-' * 8}  {'-' * 6}  {'-' * 8}")
     for cls_idx, f1 in zip(unique_classes, per_class_f1):
         label = meta.class_labels[cls_idx]
         n = count_map.get(cls_idx, 0)
         print(f"  {str(label):>8}  {f1:.4f}  {n:>8d}")
-    print(f"  {'-'*8}  {'-'*6}  {'-'*8}")
+    print(f"  {'-' * 8}  {'-' * 6}  {'-' * 8}")
     print(f"  {'macro':>8}  {per_class_f1.mean():.4f}  {len(y_np):>8d}")
 
     # ── Save plots ────────────────────────────────────────────────────
