@@ -18,7 +18,6 @@ model:
   chronos_model_id: amazon/chronos-2
 
 loss:
-  name: weighted_ce
   label_smoothing: 0.1
 
 stage1:

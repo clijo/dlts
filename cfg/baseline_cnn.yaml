@@ -5,7 +5,6 @@ model:
   baseline_width: 128
 
 loss:
-  name: weighted_ce
   label_smoothing: 0.1
 
 stage1:

@@ -1,15 +1,15 @@
 # Chronos-2 foundation model adaptation.
-batch_size: 64
+device: cuda
+batch_size: 96
 
 model:
   name: chronos
   chronos_model_id: amazon/chronos-2
-  device_map: cpu
+  device_map: cuda
   dropout: 0.1
   unfreeze_last_n: 3
 
 loss:
-  name: weighted_ce
   label_smoothing: 0.1
 
 stage1:
