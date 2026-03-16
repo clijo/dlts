@@ -40,8 +40,7 @@ def _find_sidecar(checkpoint_dir: Path, model: str | None) -> Path:
         p = checkpoint_dir / f"{model}_run_metrics.json"
         if not p.exists():
             raise FileNotFoundError(
-                f"No sidecar found at '{p}'. "
-                "Run train.py for this model first."
+                f"No sidecar found at '{p}'. Run train.py for this model first."
             )
         return p
 
@@ -143,12 +142,12 @@ def main() -> None:
 
     print("\n── Per-class F1 ─────────────────────────────────────────")
     print(f"  {'Class':>8}  {'F1':>6}  {'Support':>8}")
-    print(f"  {'-'*8}  {'-'*6}  {'-'*8}")
+    print(f"  {'-' * 8}  {'-' * 6}  {'-' * 8}")
     for cls_idx, f1 in zip(unique_classes, per_class_f1):
         label = meta.class_labels[cls_idx]
         n = count_map.get(cls_idx, 0)
         print(f"  {str(label):>8}  {f1:.4f}  {n:>8d}")
-    print(f"  {'-'*8}  {'-'*6}  {'-'*8}")
+    print(f"  {'-' * 8}  {'-' * 6}  {'-' * 8}")
     print(f"  {'macro':>8}  {per_class_f1.mean():.4f}  {len(y_test):>8d}")
 
     # ── Confusion matrix ──────────────────────────────────────────────
@@ -157,7 +156,9 @@ def main() -> None:
     fig, ax = plt.subplots(figsize=(max(8, n_cls * 0.8), max(7, n_cls * 0.7)))
     disp = ConfusionMatrixDisplay(cm, display_labels=meta.class_labels)
     disp.plot(ax=ax, colorbar=True, cmap="Blues", values_format="d")
-    ax.set_title(f"{model_name} — Confusion Matrix (Test Set)  |  Macro F1={metrics['macro_f1']:.4f}")
+    ax.set_title(
+        f"{model_name} — Confusion Matrix (Test Set)  |  Macro F1={metrics['macro_f1']:.4f}"
+    )
     ax.set_xlabel("Predicted Class")
     ax.set_ylabel("True Class")
     plt.tight_layout()
@@ -168,7 +169,7 @@ def main() -> None:
 
     print(f"\nConfusion matrix saved -> {plot_path}")
     print("\n# To display in Colab after this cell, run:")
-    print(f'#   import IPython.display')
+    print(f"#   import IPython.display")
     print(f'#   IPython.display.display(IPython.display.Image("{plot_path}"))')
 
 
