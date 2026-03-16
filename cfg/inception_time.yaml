@@ -21,7 +21,6 @@ loss:
   label_smoothing: 0.1
 
 # From-scratch: 200 epochs, patience=25 (12.5% of budget).
-# Matches the zie/ experiments on the same LSST split.
 stage1:
   epochs: 200
   lr: 1.0e-3

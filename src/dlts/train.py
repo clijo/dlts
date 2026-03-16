@@ -263,9 +263,16 @@ def run_stage(
                 scaler.unscale_(optimizer)
                 nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
 
+            scale_before = scaler.get_scale()
             scaler.step(optimizer)
             scaler.update()
-            scheduler.step()
+            # Only advance the LR schedule when the optimizer actually stepped.
+            # scaler.step() skips the optimizer when gradients contain inf/nan
+            # (scale is halved); stepping the scheduler in that case causes the
+            # "scheduler.step() before optimizer.step()" warning and wastes an
+            # LR schedule slot.
+            if scaler.get_scale() >= scale_before:
+                scheduler.step()
             losses.append(float(loss.detach().cpu()))
 
         val_metrics = evaluate(model, val_loader, device, class_weights=class_weights)
