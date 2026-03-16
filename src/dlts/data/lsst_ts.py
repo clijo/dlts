@@ -28,6 +28,7 @@ class TSMetadata:
 
 # ── Preprocessing ─────────────────────────────────────────────────────────────
 
+
 def _fill_nan(X: np.ndarray) -> np.ndarray:
     """
     Impute NaN values along the time axis per sample per channel.
@@ -64,8 +65,8 @@ def _normalize(
     to both splits — test statistics are never used.
     """
     X_train = X_train.astype(np.float32)
-    X_test  = X_test.astype(np.float32)
-    mean  = X_train.mean(axis=(0, 1), keepdims=True)   # (1, 1, C)
+    X_test = X_test.astype(np.float32)
+    mean = X_train.mean(axis=(0, 1), keepdims=True)  # (1, 1, C)
     scale = np.maximum(X_train.std(axis=(0, 1), keepdims=True), eps)
     return (X_train - mean) / scale, (X_test - mean) / scale
 
@@ -75,14 +76,15 @@ def _encode_labels(
     y_test_raw: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray, list[int]]:
     """Map raw string/int class IDs to contiguous integers [0, K-1]."""
-    labels      = sorted({int(v) for v in y_train_raw})
+    labels = sorted({int(v) for v in y_train_raw})
     label_to_idx = {label: idx for idx, label in enumerate(labels)}
     y_train = np.array([label_to_idx[int(v)] for v in y_train_raw], dtype=np.int64)
-    y_test  = np.array([label_to_idx[int(v)] for v in y_test_raw],  dtype=np.int64)
+    y_test = np.array([label_to_idx[int(v)] for v in y_test_raw], dtype=np.int64)
     return y_train, y_test, labels
 
 
 # ── Dataset loading ───────────────────────────────────────────────────────────
+
 
 def load_lsst(
     normalize: bool = True,
@@ -92,7 +94,7 @@ def load_lsst(
     X_train, y_train_raw, X_test, y_test_raw = ds.load_dataset("LSST")
 
     X_train = _fill_nan(X_train)
-    X_test  = _fill_nan(X_test)
+    X_test = _fill_nan(X_test)
 
     y_train, y_test, labels = _encode_labels(y_train_raw, y_test_raw)
 
@@ -100,7 +102,7 @@ def load_lsst(
         X_train, X_test = _normalize(X_train, X_test)
     else:
         X_train = X_train.astype(np.float32)
-        X_test  = X_test.astype(np.float32)
+        X_test = X_test.astype(np.float32)
 
     metadata = TSMetadata(
         n_dimensions=int(X_train.shape[-1]),
@@ -111,6 +113,7 @@ def load_lsst(
 
 
 # ── Dataset ───────────────────────────────────────────────────────────────────
+
 
 class LSSTDataset(Dataset[tuple[Tensor, Tensor]]):
     """
@@ -162,9 +165,9 @@ class LSSTDataset(Dataset[tuple[Tensor, Tensor]]):
             self.X = self.X.to(device)
             self.y = self.y.to(device)
 
-        self.augment          = augment
-        self.jitter_sigma     = jitter_sigma
-        self.scale_range      = scale_range
+        self.augment = augment
+        self.jitter_sigma = jitter_sigma
+        self.scale_range = scale_range
         self.channel_drop_prob = channel_drop_prob
 
     def __len__(self) -> int:

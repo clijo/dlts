@@ -45,6 +45,7 @@ from dlts.models.factory import build_model
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def _exp_softmax_weights(val_f1s: list[float], temperature: float) -> np.ndarray:
     """
     F1-weighted softmax:  w_i = exp(T · F1_val,i) / sum_j exp(T · F1_val,j)
@@ -81,8 +82,14 @@ def _load_member(record: dict, device: torch.device) -> torch.nn.Module:
 
     # Infer num_classes from the final linear layer weight shape.
     # Works for all models: last Linear has shape (num_classes, d_in).
-    classifier_keys = [k for k in ckpt if k.endswith(".weight") and "classifier" in k or
-                       k.endswith(".weight") and k.split(".")[-2] in ("head", "classifier")]
+    classifier_keys = [
+        k
+        for k in ckpt
+        if k.endswith(".weight")
+        and "classifier" in k
+        or k.endswith(".weight")
+        and k.split(".")[-2] in ("head", "classifier")
+    ]
     # Walk keys in reverse order to find the last linear layer.
     linear_keys = [k for k in ckpt if k.endswith(".weight") and ckpt[k].ndim == 2]
     last_linear_key = linear_keys[-1]
@@ -125,26 +132,37 @@ def _load_member(record: dict, device: torch.device) -> torch.nn.Module:
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="F1-weighted soft-voting ensemble")
     parser.add_argument(
-        "--checkpoint_dir", type=str, default="checkpoints",
+        "--checkpoint_dir",
+        type=str,
+        default="checkpoints",
         help="Directory containing *_run_metrics.json sidecar files.",
     )
     parser.add_argument(
-        "--min_val_f1", type=float, default=0.33,
+        "--min_val_f1",
+        type=float,
+        default=0.33,
         help="Exclude models with val macro F1 below this threshold.",
     )
     parser.add_argument(
-        "--temperature", type=float, default=10.0,
+        "--temperature",
+        type=float,
+        default=10.0,
         help="Softmax temperature T in the weighting formula.",
     )
     parser.add_argument(
-        "--device", type=str, default="auto",
+        "--device",
+        type=str,
+        default="auto",
         help="Inference device: auto | cpu | cuda | mps.",
     )
     parser.add_argument(
-        "--normalize", action="store_true", default=True,
+        "--normalize",
+        action="store_true",
+        default=True,
         help="Apply dataset-level z-normalisation (should match training).",
     )
     args = parser.parse_args()
@@ -183,8 +201,10 @@ def main() -> None:
     eligible = [r for r in records if r["val_macro_f1"] >= args.min_val_f1]
     excluded = [r for r in records if r["val_macro_f1"] < args.min_val_f1]
 
-    print(f"\nFound {len(records)} run(s), {len(eligible)} eligible "
-          f"(val F1 ≥ {args.min_val_f1}).")
+    print(
+        f"\nFound {len(records)} run(s), {len(eligible)} eligible "
+        f"(val F1 ≥ {args.min_val_f1})."
+    )
     for r in excluded:
         print(f"  [EXCLUDED] {r['model_name']:20s}  val_f1={r['val_macro_f1']:.4f}")
 
@@ -197,13 +217,13 @@ def main() -> None:
     # ── Data ──────────────────────────────────────────────────────────
     print("\nLoading LSST test set...")
     _, _, X_test, y_test, meta = load_lsst(normalize=args.normalize)
-    test_ds  = LSSTDataset(X_test, y_test)
+    test_ds = LSSTDataset(X_test, y_test)
     test_ldr = DataLoader(test_ds, batch_size=256, shuffle=False)
-    y_np     = y_test
+    y_np = y_test
 
     # ── Collect per-model probabilities ──────────────────────────────
-    all_probs:   list[np.ndarray] = []
-    all_val_f1s: list[float]      = []
+    all_probs: list[np.ndarray] = []
+    all_val_f1s: list[float] = []
 
     print()
     for r in eligible:
@@ -231,7 +251,9 @@ def main() -> None:
 
     print("\n── Ensemble weights ─────────────────────────────────────")
     for r, w in zip(eligible, weights):
-        print(f"  {r['model_name']:20s}  val_f1={r['val_macro_f1']:.4f}  weight={w:.4f}")
+        print(
+            f"  {r['model_name']:20s}  val_f1={r['val_macro_f1']:.4f}  weight={w:.4f}"
+        )
 
     p_ensemble = sum(w * p for w, p in zip(weights, all_probs))
     ens_metrics = classification_metrics(y_np, p_ensemble)
@@ -248,10 +270,10 @@ def main() -> None:
     result = {
         "members": [
             {
-                "model_name":   r["model_name"],
+                "model_name": r["model_name"],
                 "val_macro_f1": r["val_macro_f1"],
-                "weight":       float(w),
-                "checkpoint":   r["checkpoint"],
+                "weight": float(w),
+                "checkpoint": r["checkpoint"],
             }
             for r, w in zip(eligible, weights)
         ],
@@ -260,7 +282,7 @@ def main() -> None:
             for r in excluded
         ],
         "ensemble_metrics": ens_metrics,
-        "min_val_f1":  args.min_val_f1,
+        "min_val_f1": args.min_val_f1,
         "temperature": args.temperature,
     }
     out_path = ckpt_dir / "ensemble_result.json"

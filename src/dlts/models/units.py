@@ -61,7 +61,7 @@ class DynamicLinearOperator(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         # x: (B*C, P, d)
-        W = self.U @ self.V                                # (P, P)
+        W = self.U @ self.V  # (P, P)
         return (x.transpose(1, 2) @ W.T).transpose(1, 2)  # (B*C, P, d)
 
 
@@ -91,13 +91,17 @@ class UniTSBlock(nn.Module):
     ) -> None:
         super().__init__()
 
-        self.seq_attn = nn.MultiheadAttention(d_model, n_heads, dropout=dropout, batch_first=True)
-        self.norm1    = nn.LayerNorm(d_model)
+        self.seq_attn = nn.MultiheadAttention(
+            d_model, n_heads, dropout=dropout, batch_first=True
+        )
+        self.norm1 = nn.LayerNorm(d_model)
 
-        self.var_attn = nn.MultiheadAttention(d_model, n_heads, dropout=dropout, batch_first=True)
-        self.norm2    = nn.LayerNorm(d_model)
+        self.var_attn = nn.MultiheadAttention(
+            d_model, n_heads, dropout=dropout, batch_first=True
+        )
+        self.norm2 = nn.LayerNorm(d_model)
 
-        self.dlo   = DynamicLinearOperator(num_patches, rank=dlo_rank)
+        self.dlo = DynamicLinearOperator(num_patches, rank=dlo_rank)
         self.norm3 = nn.LayerNorm(d_model)
 
         self.ffn = nn.Sequential(
@@ -106,7 +110,7 @@ class UniTSBlock(nn.Module):
             nn.Dropout(dropout),
             nn.Linear(d_ff, d_model),
         )
-        self.norm4   = nn.LayerNorm(d_model)
+        self.norm4 = nn.LayerNorm(d_model)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x: Tensor, B: int, C: int) -> Tensor:
@@ -122,9 +126,9 @@ class UniTSBlock(nn.Module):
         # Pool patches -> one representative vector per channel: (B, C, d)
         channel_repr = x.reshape(B, C, P, d).mean(dim=2)
         h, _ = self.var_attn(channel_repr, channel_repr, channel_repr)
-        channel_repr = self.norm2(channel_repr + self.dropout(h))    # (B, C, d)
+        channel_repr = self.norm2(channel_repr + self.dropout(h))  # (B, C, d)
         # Broadcast the cross-channel correction back to every patch
-        x = x + channel_repr.reshape(B * C, 1, d)                   # (B*C, P, d)
+        x = x + channel_repr.reshape(B * C, 1, d)  # (B*C, P, d)
 
         # ── 3. DLO (dense time mixing) ────────────────────────────────────────
         h = self.dlo(x)
@@ -170,37 +174,41 @@ class UniTSClassifier(nn.Module):
     ) -> None:
         super().__init__()
 
-        self.n_channels  = n_channels
-        self.patch_len   = patch_len
-        self.stride      = stride
-        self.d_model     = d_model
+        self.n_channels = n_channels
+        self.patch_len = patch_len
+        self.stride = stride
+        self.d_model = d_model
         self.num_patches = (seq_len - patch_len) // stride + 1
 
         # Patch projection and positional encoding (shared across channels)
         self.patch_proj = nn.Linear(patch_len, d_model)
-        self.pos_enc    = nn.Parameter(torch.empty(1, self.num_patches, d_model))
+        self.pos_enc = nn.Parameter(torch.empty(1, self.num_patches, d_model))
         nn.init.trunc_normal_(self.pos_enc, std=0.02)
-        self.drop_emb   = nn.Dropout(dropout)
+        self.drop_emb = nn.Dropout(dropout)
 
-        self.blocks = nn.ModuleList([
-            UniTSBlock(
-                d_model=d_model,
-                n_heads=n_heads,
-                d_ff=d_ff,
-                num_patches=self.num_patches,
-                dropout=dropout,
-                dlo_rank=dlo_rank,
-            )
-            for _ in range(n_layers)
-        ])
+        self.blocks = nn.ModuleList(
+            [
+                UniTSBlock(
+                    d_model=d_model,
+                    n_heads=n_heads,
+                    d_ff=d_ff,
+                    num_patches=self.num_patches,
+                    dropout=dropout,
+                    dlo_rank=dlo_rank,
+                )
+                for _ in range(n_layers)
+            ]
+        )
 
         self.norm_enc = nn.LayerNorm(d_model)
 
         # Global [TASK] token: prepended after encoder, attends over all C channels
         self.task_token = nn.Parameter(torch.empty(1, 1, d_model))
         nn.init.trunc_normal_(self.task_token, std=0.02)
-        self.task_attn  = nn.MultiheadAttention(d_model, n_heads, dropout=dropout, batch_first=True)
-        self.norm_task  = nn.LayerNorm(d_model)
+        self.task_attn = nn.MultiheadAttention(
+            d_model, n_heads, dropout=dropout, batch_first=True
+        )
+        self.norm_task = nn.LayerNorm(d_model)
 
         self.head = nn.Sequential(
             nn.Dropout(dropout_head),
@@ -219,34 +227,34 @@ class UniTSClassifier(nn.Module):
     def _patch_and_embed(self, x: Tensor) -> Tensor:
         """(B, T, C) -> (B*C, num_patches, d_model)."""
         B, T, C = x.shape
-        xc      = x.permute(0, 2, 1)                               # (B, C, T)
+        xc = x.permute(0, 2, 1)  # (B, C, T)
         patches = xc.unfold(dimension=2, size=self.patch_len, step=self.stride)
         # -> (B, C, num_patches, patch_len)
         _, _, P, PL = patches.shape
-        patches = patches.reshape(B * C, P, PL)                    # (B*C, P, patch_len)
-        emb     = self.patch_proj(patches) + self.pos_enc          # (B*C, P, d_model)
+        patches = patches.reshape(B * C, P, PL)  # (B*C, P, patch_len)
+        emb = self.patch_proj(patches) + self.pos_enc  # (B*C, P, d_model)
         return self.drop_emb(emb)
 
     def encode(self, x: Tensor, mask: Tensor | None = None) -> Tensor:
         """Return (B, d_model) task-token representations — used for t-SNE."""
         B, T, C = x.shape
 
-        h = self._patch_and_embed(x)           # (B*C, P, d_model)
+        h = self._patch_and_embed(x)  # (B*C, P, d_model)
 
         for block in self.blocks:
             h = block(h, B, C)
 
         # GAP over patches -> one vector per channel
-        h        = self.norm_enc(h.mean(dim=1))           # (B*C, d_model)
-        channels = h.reshape(B, C, self.d_model)          # (B, C, d_model)
+        h = self.norm_enc(h.mean(dim=1))  # (B*C, d_model)
+        channels = h.reshape(B, C, self.d_model)  # (B, C, d_model)
 
         # Prepend [TASK] token, let it attend over all channel representations
-        task = self.task_token.expand(B, -1, -1)          # (B, 1, d_model)
-        seq  = torch.cat([task, channels], dim=1)         # (B, C+1, d_model)
+        task = self.task_token.expand(B, -1, -1)  # (B, 1, d_model)
+        seq = torch.cat([task, channels], dim=1)  # (B, C+1, d_model)
         h2, _ = self.task_attn(seq, seq, seq)
-        seq  = self.norm_task(seq + h2)
+        seq = self.norm_task(seq + h2)
 
-        return seq[:, 0]                                  # (B, d_model) — task token
+        return seq[:, 0]  # (B, d_model) — task token
 
     def forward(self, x: Tensor, mask: Tensor | None = None) -> Tensor:
         return self.head(self.encode(x, mask))

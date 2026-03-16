@@ -27,15 +27,17 @@ from torch import Tensor
 class RevIN(nn.Module):
     """Reversible instance normalisation (Kim et al., 2022)."""
 
-    def __init__(self, num_features: int, eps: float = 1e-5, affine: bool = True) -> None:
+    def __init__(
+        self, num_features: int, eps: float = 1e-5, affine: bool = True
+    ) -> None:
         super().__init__()
         self.eps = eps
         self.gamma = nn.Parameter(torch.ones(num_features)) if affine else None
-        self.beta  = nn.Parameter(torch.zeros(num_features)) if affine else None
+        self.beta = nn.Parameter(torch.zeros(num_features)) if affine else None
 
     def _update_stats(self, x: Tensor) -> None:
-        self._mean = x.mean(dim=1, keepdim=True)          # (B, 1, C)
-        self._std  = x.std(dim=1, keepdim=True) + self.eps
+        self._mean = x.mean(dim=1, keepdim=True)  # (B, 1, C)
+        self._std = x.std(dim=1, keepdim=True) + self.eps
 
     def forward(self, x: Tensor, mode: str) -> Tensor:
         if mode == "norm":
@@ -77,11 +79,11 @@ class PatchTSTClassifier(nn.Module):
     ) -> None:
         super().__init__()
 
-        self.seq_len    = seq_len
+        self.seq_len = seq_len
         self.n_channels = n_channels
-        self.patch_len  = patch_len
-        self.stride     = stride
-        self.d_model    = d_model
+        self.patch_len = patch_len
+        self.stride = stride
+        self.d_model = d_model
 
         num_patches = (seq_len - patch_len) // stride + 1
         self.num_patches = num_patches
@@ -90,9 +92,9 @@ class PatchTSTClassifier(nn.Module):
 
         # Patch projection and positional encoding (shared across channels)
         self.patch_proj = nn.Linear(patch_len, d_model)
-        self.pos_enc    = nn.Parameter(torch.empty(1, num_patches, d_model))
+        self.pos_enc = nn.Parameter(torch.empty(1, num_patches, d_model))
         nn.init.trunc_normal_(self.pos_enc, std=0.02)
-        self.drop_emb   = nn.Dropout(dropout)
+        self.drop_emb = nn.Dropout(dropout)
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -126,22 +128,22 @@ class PatchTSTClassifier(nn.Module):
     def _patch_and_embed(self, x: Tensor) -> Tensor:
         """(B, T, C) -> (B*C, num_patches, d_model)."""
         B, T, C = x.shape
-        xc      = x.permute(0, 2, 1)                               # (B, C, T)
+        xc = x.permute(0, 2, 1)  # (B, C, T)
         patches = xc.unfold(dimension=2, size=self.patch_len, step=self.stride)
         # -> (B, C, num_patches, patch_len)
         _, _, P, PL = patches.shape
-        patches = patches.reshape(B * C, P, PL)                    # (B*C, P, patch_len)
-        emb     = self.patch_proj(patches) + self.pos_enc          # (B*C, P, d_model)
+        patches = patches.reshape(B * C, P, PL)  # (B*C, P, patch_len)
+        emb = self.patch_proj(patches) + self.pos_enc  # (B*C, P, d_model)
         return self.drop_emb(emb)
 
     def encode(self, x: Tensor, mask: Tensor | None = None) -> Tensor:
         """Return (B, d_model * n_channels) feature vectors — used for t-SNE."""
         B, T, C = x.shape
-        x       = self.revin(x, "norm")
-        emb     = self._patch_and_embed(x)                         # (B*C, P, d_model)
-        out     = self.transformer(emb)                            # (B*C, P, d_model)
-        pooled  = self.norm(out.mean(dim=1))                       # (B*C, d_model)
-        return pooled.reshape(B, C * self.d_model)                 # (B, C*d_model)
+        x = self.revin(x, "norm")
+        emb = self._patch_and_embed(x)  # (B*C, P, d_model)
+        out = self.transformer(emb)  # (B*C, P, d_model)
+        pooled = self.norm(out.mean(dim=1))  # (B*C, d_model)
+        return pooled.reshape(B, C * self.d_model)  # (B, C*d_model)
 
     def forward(self, x: Tensor, mask: Tensor | None = None) -> Tensor:
         return self.head(self.encode(x, mask))

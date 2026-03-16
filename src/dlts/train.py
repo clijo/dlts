@@ -332,8 +332,8 @@ def main() -> None:
     )
 
     train_ds = LSSTDataset(X_train, y_train, device=device, augment=cfg.data.augment)
-    val_ds   = LSSTDataset(X_val,   y_val,   device=device, augment=False)
-    test_ds  = LSSTDataset(X_test,  y_test,  device=device, augment=False)
+    val_ds = LSSTDataset(X_val, y_val, device=device, augment=False)
+    test_ds = LSSTDataset(X_test, y_test, device=device, augment=False)
     # Data tensors are preloaded onto `device`, so worker processes are only useful on CPU.
     effective_num_workers = cfg.num_workers if device.type == "cpu" else 0
     loader_kwargs = dict(
@@ -498,20 +498,22 @@ def main() -> None:
     # ── Save sidecar JSON for ensemble ────────────────────────────────
     # val_macro_f1 is used (not test) for ensemble weighting to avoid leakage.
     best_ckpt = (
-        stage2_ckpt if (stage2_saved and stage2_ckpt.exists()) else
-        stage1_ckpt if (stage1_saved and stage1_ckpt.exists()) else
-        None
+        stage2_ckpt
+        if (stage2_saved and stage2_ckpt.exists())
+        else stage1_ckpt
+        if (stage1_saved and stage1_ckpt.exists())
+        else None
     )
     run_record = {
-        "model_name":            cfg.model.name,
-        "run_name":              cfg.wandb.run_name,
-        "checkpoint":            str(best_ckpt) if best_ckpt else None,
-        "val_macro_f1":          best_val_f1,
-        "test_macro_f1":         test_metrics["macro_f1"],
-        "test_accuracy":         test_metrics["accuracy"],
+        "model_name": cfg.model.name,
+        "run_name": cfg.wandb.run_name,
+        "checkpoint": str(best_ckpt) if best_ckpt else None,
+        "val_macro_f1": best_val_f1,
+        "test_macro_f1": test_metrics["macro_f1"],
+        "test_accuracy": test_metrics["accuracy"],
         "test_balanced_accuracy": test_metrics["balanced_accuracy"],
-        "model_cfg":             {k: v for k, v in cfg.as_dict().get("model", {}).items()},
-        "data_cfg":              {k: v for k, v in cfg.as_dict().get("data", {}).items()},
+        "model_cfg": {k: v for k, v in cfg.as_dict().get("model", {}).items()},
+        "data_cfg": {k: v for k, v in cfg.as_dict().get("data", {}).items()},
     }
     sidecar_path = ckpt_dir / f"{cfg.model.name}_run_metrics.json"
     sidecar_path.parent.mkdir(parents=True, exist_ok=True)

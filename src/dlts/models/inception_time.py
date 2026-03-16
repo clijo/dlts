@@ -43,10 +43,14 @@ class InceptionModule(nn.Module):
         else:
             bottleneck_ch = in_channels
 
-        self.convs = nn.ModuleList([
-            nn.Conv1d(bottleneck_ch, nb_filters, kernel_size=k, padding=k // 2, bias=False)
-            for k in kernel_sizes
-        ])
+        self.convs = nn.ModuleList(
+            [
+                nn.Conv1d(
+                    bottleneck_ch, nb_filters, kernel_size=k, padding=k // 2, bias=False
+                )
+                for k in kernel_sizes
+            ]
+        )
 
         self.maxpool = nn.MaxPool1d(kernel_size=3, stride=1, padding=1)
         self.conv_mp = nn.Conv1d(in_channels, nb_filters, kernel_size=1, bias=False)
@@ -159,11 +163,13 @@ class InceptionTime(nn.Module):
 
     def encode(self, x: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
         """Return GAP features (B, out_channels) — used for t-SNE visualization."""
-        x = x.transpose(1, 2)            # (B, T, C) -> (B, C, T)
-        x = self.blocks(x)               # (B, out_ch, T)
-        return self.gap(x).squeeze(-1)   # (B, out_ch)
+        x = x.transpose(1, 2)  # (B, T, C) -> (B, C, T)
+        x = self.blocks(x)  # (B, out_ch, T)
+        return self.gap(x).squeeze(-1)  # (B, out_ch)
 
-    def forward(self, x: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
+    def forward(
+        self, x: torch.Tensor, mask: torch.Tensor | None = None
+    ) -> torch.Tensor:
         """mask is accepted for API consistency but not used by the conv model."""
         feats = self.encode(x, mask)
         feats = self.dropout(feats)
